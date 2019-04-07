@@ -1,0 +1,7 @@
+= Articles
+
+:numbered!:
+
+include::2019/2019-04-05-spring-boot-security-multiproviders.adoc[]
+
+:numbered:

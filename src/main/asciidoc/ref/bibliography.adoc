@@ -1,0 +1,11 @@
+[[bibliography]]
+= Références
+
+:numbered!:
+
+- [[[baeldung-1]]baeldung-1] _2018-11-06_. Sunil Mogadati. https://www.baeldung.com/get-user-in-spring-security[Multiple Authentication Providers in Spring Security]. Lu le _2019-03-28_
+- [[[baeldung-2]]baeldung-2] _2018-11-06_. Loredana Crusoveanu. https://www.baeldung.com/spring-security-authentication-with-a-database[Spring Security: Authentication with a Database-backed UserDetailsService]. Lu le _2019-03-29_
+- [[[baeldung-3]]baeldung-3] _2018-11-06_. Eugen Paraschiv. https://www.baeldung.com/get-user-in-spring-security[Retrieve User Information in Spring Security]. Lu le _2019-03-31_
+- [[[baeldung-4]]baeldung-4] _2019-02-21_. Baeldung. https://www.baeldung.com/spring-boot-jasypt[Spring Boot Configuration with Jasypt]. Lu le _2019-04-02_
+
+:numbered:
