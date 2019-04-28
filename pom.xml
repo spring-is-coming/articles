@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.spring</groupId>
+    <artifactId>spring-is-coming</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <organization>
+        <name>Spring is coming</name>
+        <url>https://spring-i-coming.github.io</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>ratonlarvor</id>
+            <name>Yannick LARVOR</name>
+            <email>larvor.yannick@gmail.com</email>
+        </developer>
+    </developers>
+
+    <properties>
+        <maven.test.skip>true</maven.test.skip>
+        <maven.plugin.asciidoctor.version>1.5.7.1</maven.plugin.asciidoctor.version>
+        <maven.plugin.site.version>0.12</maven.plugin.site.version>
+
+        <spring-doc-resources.version>0.1.1.RELEASE</spring-doc-resources.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>spring-libs-milestone</id>
+            <url>https://repo.spring.io/libs-milestone</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.spring.docresources</groupId>
+            <artifactId>spring-doc-resources</artifactId>
+            <version>${spring-doc-resources.version}</version>
+            <type>zip</type>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <project.version>${project.version}</project.version>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-doc-resources</id>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <includeGroupIds>io.spring.docresources</includeGroupIds>
+                            <includeArtifactIds>spring-doc-resources</includeArtifactIds>
+                            <includeTypes>zip</includeTypes>
+                            <excludeTransitive>true</excludeTransitive>
+                            <outputDirectory>${project.build.directory}/refdocs/</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-asciidoc-resources</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/refdocs/</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/asciidoc</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>${maven.plugin.asciidoctor.version}</version>
+                <configuration>
+                    <sourceDirectory>${project.build.directory}/refdocs/</sourceDirectory>
+                    <outputDirectory>${project.build.directory}/../docs/</outputDirectory>
+                    <attributes>
+                        // Add attributes generated by the build
+                        <revnumber>${project.version}</revnumber>
+
+                        // Add locations of code snippets to include in the documentation
+                        <sources-root>${project.basedir}/src/</sources-root>
+
+                    </attributes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-html-documentation</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <backend>html5</backend>
+                            <sourceHighlighter>highlight.js</sourceHighlighter>
+                            <doctype>book</doctype>
+                            <attributes>
+                                // these attributes are required to use the doc resources
+                                <docinfo>shared</docinfo>
+                                <stylesdir>css/</stylesdir>
+                                <stylesheet>spring.css</stylesheet>
+                                <linkcss>true</linkcss>
+                                <icons>font</icons>
+                                <highlightjsdir>js/highlight</highlightjsdir>
+                                <highlightjs-theme>atom-one-dark-reasonable</highlightjs-theme>
+                            </attributes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

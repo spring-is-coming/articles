@@ -1,0 +1,11 @@
+[[bibliography]]
+= code source
+
+- [[[github-1]]spring-boot-security-multi-provider] https://github.com/spring-is-coming/spring-boot-security-multi-provider
+
+- [[[ulisesbocchio-1]]jasypt-spring-boot] https://github.com/ulisesbocchio/jasypt-spring-boot
+- [[[ulisesbocchio-2]]jasypt-spring-boot-samples] https://github.com/ulisesbocchio/jasypt-spring-boot-samples
+
+= Stackoverflow
+
+- [[[stackoverflow-1]]stackoverflow-1] https://stackoverflow.com/a/51880636[spring boot app shutting down without error]

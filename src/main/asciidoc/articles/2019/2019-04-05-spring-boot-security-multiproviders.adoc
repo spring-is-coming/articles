@@ -1,0 +1,219 @@
+:springBootVersion: 2.1.3.RELEASE
+:imgPath: ../articles/2019/content/20190405
+:!step:
+=== Spring : Comment gérer plusieurs provider dans une configuration de sécurité ?
+
+[cols="1,3"]
+|===
+| *Spring Boot Version*
+| {springBootVersion}
+
+| *Auteur*
+| Yannick LARVOR
+
+| *Dernière mise à jour*
+| 2019.04.05
+
+| *Sources*
+| <<github-1>> / https://github.com/ratonlarvor/spring-boot-security-multi-provider[spring-boot-security-multi-provider]
+|===
+
+.Historique
+[cols="1,1,1,3",options="header"]
+|===
+| Version
+| Date
+| Auteur
+| Description
+
+| 1.0.0
+| 2019.04.05
+| YKL
+| Création
+|===
+
+
+==== Context
+Pour mettre en place dans le context de sécurité de Spring l'utilisateur connecté faut-il encore le retrouver. Plusieurs solutions possible parmis la multitude de *Authentication Provider* proposés que soit au travers d'une base de données, d'un service tiers ou encore d'un LDAP. Spring sécurity nous permet également de créer des utilisateurs _mémoire_ qui peuvent constituer souvent un moyen idéal de cosntituer un jeu de test. Nous allons voir ici comment gérer un double moyen de renseigner notre context.
+
+Pour se faire, on va créer un projet Spring Boot gérant deux Authentication Provider.
+
+==== Step {counter:step}: Initialisation du projet
+On commence par générer un projet simple avec quelques module de spring boot grâce à https://start.spring.io[Spring initializr]:
+
+.Structure du projet
+----
+include::content/20190405/project-structure.1.txt[]
+----
+
+.pom.xml
+[source,xml,indent=0,subs="verbatim,attributes"]
+----
+include::content/20190405/pom.1.xml[]
+----
+<1> Spring starter security
+<2> Spring starter web
+
+[source,java,indent=0]
+----
+include::content/20190405/HomeController.1.java[]
+----
+
+Une fois l'application lancée sur le port 8080 on peut se rendre à l'url suivante : http://localhost:8080
+
+On constate que la page est redirigée vers */login* automatiquement. Il s'agit d'un comportement par défaut ajouté dans la nouvelle mouture de Spring Security. En effet toutes les urls de notre application sont maintenant protégées par défaut. Il faut donc spécifier les urls non sécurisées.
+
+image::{imgPath}/01-home-page-no-security-config.png[]
+
+[TIP]
+====
+Il est préférable de relancer plusieurs fois son navigateur en mode privé lors des tests
+====
+
+
+==== Step {counter:step}: Mise en place de la sécurité et du premier provider
+On va maintenant ajouter nos premiers utilisateurs avec des utilisateurs enregistrés en mémoire (*_inMemoryAuthentication_*). On crée dans ce but la class *_SecurityConfig_*
+
+[source,java,indent=0]
+----
+include::content/20190405/SecurityConfig.1.java[]
+----
+<1> La configuration de l'AuthenticationManagerBuilder va nous permettre d'ajouter différent providers
+<2> Il s'agit pour l'instant de la configuration par défaut
+
+
+==== Step {counter:step}: Mise en place du second provider
+On a besoin maintenant de créer notre second provider qui lui fera appel à notre base de données. On dispose déjà d'une petite base H2 en mémoire.
+On verra par la suite comment donner l'accès uniquement à l'administrateur.
+Dans un premier temps on va créer l'entité représentative de notre utilisateur.
+
+.User Entity
+[source,java,indent=0]
+----
+include::content/20190405/User.1.java[]
+----
+<1> L'ID est généré automatiquement
+<2> Afin d'aller plus vide dans le mapping j'utilise *_@ElementCollection_*
+<3> *_@Singular_* est une fonctionalité de Lombok très pratique pour gérer les collections avec un Builder
+
+.User repository
+[source,java,indent=0]
+----
+include::content/20190405/UserRepository.1.java[]
+----
+
+Enfin il faut déclarer un service qui hérite de `org.springframework.security.core.userdetails.UserDetailsService` qui fera le travail de récupérer l'utilisateur correctement. ce service retourne un objet `org.springframework.security.core.userdetails.UserDetails`. Il est tout à fait possible de l'étendre avec nos propres attibuts mais ce n'est pas le sujet de l'article.
+
+.MyUserDetailsService.java
+[source,java,indent=0]
+----
+include::content/20190405/MyUserDetailsService.1.java[]
+----
+<1> Si l'utilisateur n'est pas trouvé, il faut lever une exception pour passer au provider suivant.
+
+Il faut mettre à jour la config de sécurité maintenant. On ajoute donc le nouveau provider.
+
+Un provider à besoin de deux choses:
+
+. Un *_userdetailsService_* qui va faire effectuer la recherche de l'utilisateur en fonction du login/username
+. Un *_passwordEncoder_* qui sera global pour toute la sécurité.
+
+[source,java,indent=0]
+----
+@Configuration
+@RequiredArgsConstructor
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+    private final MyUserDetailsService myUserDetailsService;<1>
+
+    @Override
+    @SuppressWarnings("deprecation")
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(databaseAuthenticationProvider()); <2>
+
+        auth.inMemoryAuthentication() <4>
+                .withUser(User.withUsername("user").password(passwordEncoder().encode("user")).roles("USER").build())
+                .withUser(User.withUsername("admin").password(passwordEncoder().encode("admin")).roles("USER", "ADMIN").build());
+    }
+
+    ...
+
+    @Bean
+    public PasswordEncoder passwordEncoder() { <3>
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider databaseAuthenticationProvider() { <5>
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(myUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
+}
+----
+<1> On injecte notre nouveau service de recherche
+<2> On ajoute le provider
+<3> On définie un *_passwordEncoder_* global pour la sécurité. Lors d'un signin le password sera encodé grâce à ce bean.
+<4> Il est donc important de le déclarer aussi pour les utilisateurs en mémoire comme expliqué précédemment.
+<5> On configure le provider. Dans notre cas : un *_DaoAuthenticationProvider_*
+
+On va ajouter un utilisateur dans notre base de données afin de faire un premier test. Pour ceci il suffit d'ajouter un ApplicationRunner qui ajoutera dans notre base mémoire un utilisateur.
+
+[TIP]
+====
+Dans le cas d'une base mémoire, comme la base est crée à chaque démarrage, puis détruite à chaque arrêt de l'application, il n'est pas nécessaire de contrôler l'existantce de notre utilisateur.
+====
+
+.Application.java
+[source,java,indent=0]
+----
+include::content/20190405/Application.1.java[]
+----
+<1> Le composant est ajouté dans la classe principale mais ce n'est en aucun cas une obligation
+
+Pour valider notre test on va modifier le HomeController pour détailler le profil de la personne afin de récupérer les informations de l'utilisateur loggué.
+
+On commence par créer une interface pour récupérer le context d'authenfication.
+
+.AuthenticationFacade.java
+[source,java,indent=0]
+----
+include::content/20190405/AuthenticationFacade.1.java[]
+----
+
+On implémente ensuite cette interface.
+
+.MyAuthenticationFacade.java
+[source,java,indent=0]
+----
+include::content/20190405/MyAuthenticationFacade.1.java[]
+----
+
+Enfin on modifie notre HomeController afin d'injecter noter nouvelle facade et donner quelques informations sur le profil de l'utilisateur connecté.
+
+.HomeController
+[source,java,indent=0]
+----
+include::content/20190405/HomeController.2.java[lines=12..-1]
+----
+
+On peut aller tester notre application:
+
+. Lancer une première fenêtre en mode privé sur http://localhost:8080
+. La sécurité nous redirige vers la page de login
+. Entrez les info de l'utilisateur *user* (mot de passe *_user_*)
+. On doit obtenir le message suivant: _hello user your roles are: [ROLE_USER]_
+
+. Recommencez les étapes 1 à 3 avec l'utilisateur *admin* (n'oubliez pas de relancer une fenêtre en mode privé)
+. On doit obtenir le message suivant: _hello admin your roles are: [ROLE_ADMIN, ROLE_USER]_
+
+. Enfin recommencez les étapes 1 à 3 avec l'utilisateur *ykl*
+. On doit obtenir le message suivant: _hello ykl your roles are: [ROLE_USER]_
+
+Si tout fonctionne bien on a alors la preuve que l'on peut utiliser à la fois des utilisateurs mémoire comme des utilisateurs en base de données.
+
+
+==== Articles référence
+* <<baeldung-1>> Multiple Authentication Providers in Spring Security
+* <<baeldung-2>> Spring Security: Authentication with a Database-backed UserDetailsService
+* <<baeldung-3>> Retrieve User Information in Spring Security

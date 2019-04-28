@@ -1,0 +1,17 @@
+= Spring par la pratique
+Yannick LARVOR
+:doctype: article
+:toc: left
+:toclevels: 2
+:tabsize: 4
+:numbered:
+:sectanchors:
+:sectnums:
+:icons: font
+:hide-uri-scheme:
+:docinfo: shared,private
+
+include::articles/index.adoc[]
+
+include::ref/bibliography.adoc[]
+include::ref/github.adoc[]

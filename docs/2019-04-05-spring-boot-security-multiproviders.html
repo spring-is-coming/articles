@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!--[if IE]><meta http-equiv="X-UA-Compatible" content="IE=edge"><![endif]-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 1.5.7.1">
+<title>Spring : Comment gérer plusieurs provider dans une configuration de sécurité ?</title>
+<link rel="stylesheet" href="css/spring.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body class="book">
+<div id="header">
+</div>
+<div id="content">
+<div class="sect2">
+<h3 id="_spring_comment_gérer_plusieurs_provider_dans_une_configuration_de_sécurité">Spring : Comment gérer plusieurs provider dans une configuration de sécurité ?</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Spring Boot Version</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.1.3.RELEASE</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Auteur</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yannick LARVOR</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Dernière mise à jour</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2019.04.05</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Sources</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#github-1">[github-1]</a> / <a href="https://github.com/ratonlarvor/spring-boot-security-multi-provider">spring-boot-security-multi-provider</a></p></td>
+</tr>
+</tbody>
+</table>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Historique</caption>
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 16.6666%;">
+<col style="width: 16.6666%;">
+<col style="width: 50.0002%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Version</th>
+<th class="tableblock halign-left valign-top">Date</th>
+<th class="tableblock halign-left valign-top">Auteur</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.0.0</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2019.04.05</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">YKL</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Création</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect3">
+<h4 id="_context">Context</h4>
+<div class="paragraph">
+<p>Pour mettre en place dans le context de sécurité de Spring l&#8217;utilisateur connecté faut-il encore le retrouver. Plusieurs solutions possible parmis la multitude de <strong>Authentication Provider</strong> proposés que soit au travers d&#8217;une base de données, d&#8217;un service tiers ou encore d&#8217;un LDAP. Spring sécurity nous permet également de créer des utilisateurs <em>mémoire</em> qui peuvent constituer souvent un moyen idéal de cosntituer un jeu de test. Nous allons voir ici comment gérer un double moyen de renseigner notre context.</p>
+</div>
+<div class="paragraph">
+<p>Pour se faire, on va créer un projet Spring Boot gérant deux Authentication Provider.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_step_1_initialisation_du_projet">Step 1: Initialisation du projet</h4>
+<div class="paragraph">
+<p>On commence par générer un projet simple avec quelques module de spring boot grâce à <a href="https://start.spring.io">Spring initializr</a>:</p>
+</div>
+<div class="listingblock">
+<div class="title">Structure du projet</div>
+<div class="content">
+<pre>Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/project-structure.1.txt[]</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">pom.xml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/pom.1.xml[]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Spring starter security</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Spring starter web</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/HomeController.1.java[]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Une fois l&#8217;application lancée sur le port 8080 on peut se rendre à l&#8217;url suivante : <a href="http://localhost:8080" class="bare">http://localhost:8080</a></p>
+</div>
+<div class="paragraph">
+<p>On constate que la page est redirigée vers <strong>/login</strong> automatiquement. Il s&#8217;agit d&#8217;un comportement par défaut ajouté dans la nouvelle mouture de Spring Security. En effet toutes les urls de notre application sont maintenant protégées par défaut. Il faut donc spécifier les urls non sécurisées.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="articles/2019/content/20190405/01-home-page-no-security-config.png" alt="01 home page no security config">
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Il est préférable de relancer plusieurs fois son navigateur en mode privé lors des tests</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_step_2_mise_en_place_de_la_sécurité_et_du_premier_provider">Step 2: Mise en place de la sécurité et du premier provider</h4>
+<div class="paragraph">
+<p>On va maintenant ajouter nos premiers utilisateurs avec des utilisateurs enregistrés en mémoire (<strong><em>inMemoryAuthentication</em></strong>). On crée dans ce but la class <strong><em>SecurityConfig</em></strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/SecurityConfig.1.java[]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>La configuration de l&#8217;AuthenticationManagerBuilder va nous permettre d&#8217;ajouter différent providers</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Il s&#8217;agit pour l&#8217;instant de la configuration par défaut</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_step_3_mise_en_place_du_second_provider">Step 3: Mise en place du second provider</h4>
+<div class="paragraph">
+<p>On a besoin maintenant de créer notre second provider qui lui fera appel à notre base de données. On dispose déjà d&#8217;une petite base H2 en mémoire.
+On verra par la suite comment donner l&#8217;accès uniquement à l&#8217;administrateur.
+Dans un premier temps on va créer l&#8217;entité représentative de notre utilisateur.</p>
+</div>
+<div class="listingblock">
+<div class="title">User Entity</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/User.1.java[]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>L&#8217;ID est généré automatiquement</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Afin d&#8217;aller plus vide dans le mapping j&#8217;utilise <strong><em>@ElementCollection</em></strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td><strong><em>@Singular</em></strong> est une fonctionalité de Lombok très pratique pour gérer les collections avec un Builder</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="title">User repository</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/UserRepository.1.java[]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Enfin il faut déclarer un service qui hérite de <code>org.springframework.security.core.userdetails.UserDetailsService</code> qui fera le travail de récupérer l&#8217;utilisateur correctement. ce service retourne un objet <code>org.springframework.security.core.userdetails.UserDetails</code>. Il est tout à fait possible de l&#8217;étendre avec nos propres attibuts mais ce n&#8217;est pas le sujet de l&#8217;article.</p>
+</div>
+<div class="listingblock">
+<div class="title">MyUserDetailsService.java</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/MyUserDetailsService.1.java[]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Si l&#8217;utilisateur n&#8217;est pas trouvé, il faut lever une exception pour passer au provider suivant.</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Il faut mettre à jour la config de sécurité maintenant. On ajoute donc le nouveau provider.</p>
+</div>
+<div class="paragraph">
+<p>Un provider à besoin de deux choses:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Un <strong><em>userdetailsService</em></strong> qui va faire effectuer la recherche de l&#8217;utilisateur en fonction du login/username</p>
+</li>
+<li>
+<p>Un <strong><em>passwordEncoder</em></strong> qui sera global pour toute la sécurité.</p>
+</li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Configuration
+@RequiredArgsConstructor
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+    private final MyUserDetailsService myUserDetailsService;<i class="conum" data-value="1"></i><b>(1)</b>
+
+    @Override
+    @SuppressWarnings("deprecation")
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(databaseAuthenticationProvider()); <i class="conum" data-value="2"></i><b>(2)</b>
+
+        auth.inMemoryAuthentication() <i class="conum" data-value="4"></i><b>(4)</b>
+                .withUser(User.withUsername("user").password(passwordEncoder().encode("user")).roles("USER").build())
+                .withUser(User.withUsername("admin").password(passwordEncoder().encode("admin")).roles("USER", "ADMIN").build());
+    }
+
+    ...
+
+    @Bean
+    public PasswordEncoder passwordEncoder() { <i class="conum" data-value="3"></i><b>(3)</b>
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider databaseAuthenticationProvider() { <i class="conum" data-value="5"></i><b>(5)</b>
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(myUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
+}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>On injecte notre nouveau service de recherche</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>On ajoute le provider</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>On définie un <strong><em>passwordEncoder</em></strong> global pour la sécurité. Lors d&#8217;un signin le password sera encodé grâce à ce bean.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Il est donc important de le déclarer aussi pour les utilisateurs en mémoire comme expliqué précédemment.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>On configure le provider. Dans notre cas : un <strong><em>DaoAuthenticationProvider</em></strong></td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>On va ajouter un utilisateur dans notre base de données afin de faire un premier test. Pour ceci il suffit d&#8217;ajouter un ApplicationRunner qui ajoutera dans notre base mémoire un utilisateur.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>Dans le cas d&#8217;une base mémoire, comme la base est crée à chaque démarrage, puis détruite à chaque arrêt de l&#8217;application, il n&#8217;est pas nécessaire de contrôler l&#8217;existantce de notre utilisateur.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="title">Application.java</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/Application.1.java[]</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Le composant est ajouté dans la classe principale mais ce n&#8217;est en aucun cas une obligation</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Pour valider notre test on va modifier le HomeController pour détailler le profil de la personne afin de récupérer les informations de l&#8217;utilisateur loggué.</p>
+</div>
+<div class="paragraph">
+<p>On commence par créer une interface pour récupérer le context d&#8217;authenfication.</p>
+</div>
+<div class="listingblock">
+<div class="title">AuthenticationFacade.java</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/AuthenticationFacade.1.java[]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>On implémente ensuite cette interface.</p>
+</div>
+<div class="listingblock">
+<div class="title">MyAuthenticationFacade.java</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/MyAuthenticationFacade.1.java[]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Enfin on modifie notre HomeController afin d&#8217;injecter noter nouvelle facade et donner quelques informations sur le profil de l&#8217;utilisateur connecté.</p>
+</div>
+<div class="listingblock">
+<div class="title">HomeController</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Unresolved directive in 2019-04-05-spring-boot-security-multiproviders.adoc - include::content/20190405/HomeController.2.java[lines=12..-1]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>On peut aller tester notre application:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Lancer une première fenêtre en mode privé sur <a href="http://localhost:8080" class="bare">http://localhost:8080</a></p>
+</li>
+<li>
+<p>La sécurité nous redirige vers la page de login</p>
+</li>
+<li>
+<p>Entrez les info de l&#8217;utilisateur <strong>user</strong> (mot de passe <strong><em>user</em></strong>)</p>
+</li>
+<li>
+<p>On doit obtenir le message suivant: <em>hello user your roles are: [ROLE_USER]</em></p>
+</li>
+<li>
+<p>Recommencez les étapes 1 à 3 avec l&#8217;utilisateur <strong>admin</strong> (n&#8217;oubliez pas de relancer une fenêtre en mode privé)</p>
+</li>
+<li>
+<p>On doit obtenir le message suivant: <em>hello admin your roles are: [ROLE_ADMIN, ROLE_USER]</em></p>
+</li>
+<li>
+<p>Enfin recommencez les étapes 1 à 3 avec l&#8217;utilisateur <strong>ykl</strong></p>
+</li>
+<li>
+<p>On doit obtenir le message suivant: <em>hello ykl your roles are: [ROLE_USER]</em></p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Si tout fonctionne bien on a alors la preuve que l&#8217;on peut utiliser à la fois des utilisateurs mémoire comme des utilisateurs en base de données.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_articles_référence">Articles référence</h4>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="#baeldung-1">[baeldung-1]</a> Multiple Authentication Providers in Spring Security</p>
+</li>
+<li>
+<p><a href="#baeldung-2">[baeldung-2]</a> Spring Security: Authentication with a Database-backed UserDetailsService</p>
+</li>
+<li>
+<p><a href="#baeldung-3">[baeldung-3]</a> Retrieve User Information in Spring Security</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Version 1.0.0-SNAPSHOT<br>
+Last updated 2019-04-28 19:12:40 CEST
+</div>
+</div>
+<script type="text/javascript" src="js/tocbot/tocbot.min.js"></script>
+<script type="text/javascript" src="js/toc.js"></script>
+<link rel="stylesheet" href="js/highlight/styles/atom-one-dark-reasonable.min.css">
+<script src="js/highlight/highlight.min.js"></script>
+<script>hljs.initHighlighting()</script>
+</body>
+</html>

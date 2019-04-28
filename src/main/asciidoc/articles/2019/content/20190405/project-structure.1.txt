@@ -1,0 +1,10 @@
+pom.xml
+src
+└── main
+    └── java
+        ├── io
+        │   └── opph
+        │       └── example
+        │           └── Application.java
+        └── resources
+            └── application.yml
